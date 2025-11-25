@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>For You 💌</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Optional: nice Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top, #c8e9d6 0, #7effb8 40%, #88fbac 100%);
+      font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #333;
+    }
+
+    .container {
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-size: 1.6rem;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-bottom: 1.5rem;
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
+      opacity: 0.7;
+    }
+
+    .envelope-wrapper {
+      display: inline-block;
+      cursor: pointer;
+      perspective: 1000px;
+      margin-top: 10px;
+    }
+
+    .envelope {
+      position: relative;
+      width: 640px;
+      max-width: 180vw;
+      height: 440px;
+      background: #008029;
+      border-radius: 14px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+      overflow: visible;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    .envelope-wrapper:hover .envelope {
+      transform: translateY(0px);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+    }
+
+    /* Bottom triangle (back of envelope) - static and visible */
+    .envelope::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #017b3e, #003f20);
+      clip-path: polygon(0 100%, 50% 40%, 100% 100%);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    /* Respect user's reduced motion preference (disable flap transforms/animations) */
+    @media (prefers-reduced-motion: reduce) {
+      .flap { transition: none !important; transform: none !important; }
+      .flying-heart { animation: none !important; opacity: 0 !important; }
+    }
+
+    /* Top flap */
+    .flap {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #00bb54, #028146);
+      clip-path: polygon(0 0, 100% 0, 50% 60%);
+      transform-origin: top center;
+      transform: rotateX(0deg);
+      transition: transform 0.6s ease;
+      z-index: 6; /* highest when closed */
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
+    }
+
+    /* Left side flap - reaches toward center and stays behind bottom flap */
+    .left-flap {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(45deg, #00bb54, #008029);
+      clip-path: polygon(0 0, 50% 50%, 0 100%);
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    /* Right side flap - reaches toward center and stays behind bottom flap */
+    .right-flap {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(-45deg, #00bb54, #008029);
+      clip-path: polygon(100% 0, 50% 50%, 100% 100%);
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    /* Letter inside */
+    .letter {
+      position: absolute;
+      left: 10%;
+      width: 80%;
+      height: auto;
+      min-height: 350px;
+      bottom: 10%;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 20px 18px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      transition: transform 0.45s cubic-bezier(.2,.9,.2,1), opacity 0.3s ease;
+      z-index: 3;
+      opacity: 0;
+      max-height: 800px;
+      overflow-y: auto;
+      touch-action: none; /* enable pointer dragging */
+      cursor: grab;
+      transform: translateY(0); /* closed: no transform */
+    }
+
+    /* When opened: letter should only peek out slightly (move up) */
+    .letter.show {
+      transform: translateY(-60px); /* negative = move up, peek out above envelope */
+      opacity: 1;
+    }
+
+    .letter.dragging {
+      cursor: grabbing;
+      transition: none !important;
+    }
+
+    .letter.pulled-out {
+      box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    }
+
+    .letter h2 {
+      font-size: 1.1rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .letter .to-line {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-bottom: 0.7rem;
+    }
+
+    .poem {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      text-align: left;
+      white-space: pre-line; /* keep your line breaks */
+      /* Limit visible poem height and allow vertical scrolling */
+      max-height: calc(100% - 5.2rem);
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      padding-right: 6px; /* room for scrollbar */
+    }
+
+    .signature {
+      margin-top: 0.9rem;
+      font-size: 0.85rem;
+      text-align: right;
+      opacity: 0.9;
+    }
+
+    .heart {
+      font-size: 2.8rem;
+      margin-top: 1.2rem;
+    }
+
+    /* Flying hearts (spawn on open) */
+    .flying-heart {
+      position: absolute;
+      left: 100%;
+      top: 120%;
+      transform: translate(-50%, 0) scale(1);
+      pointer-events: none;
+      font-size: 36px;
+      filter: drop-shadow(0 4px 6px rgba(189, 190, 190, 0.15));
+      color: #50bbec; /* red hearts */
+      will-change: transform, opacity;
+      z-index: 12;
+      opacity: 0;
+      animation-name: heartFloat;
+      animation-timing-function: cubic-bezier(.2,-0.4,.2,1.2);
+    }
+
+    @keyframes heartFloat {
+      0% {
+        transform: translate(-50%, 0) scale(0.9) rotate(0deg);
+        opacity: 1;
+      }
+      50% {
+        transform: translate(calc(-50% + var(--x, 0px)), -100px) scale(1.08) rotate(var(--rot, 0deg));
+        opacity: 0.95;
+      }
+      100% {
+        transform: translate(calc(-50% + var(--x, 0px)), -300px) scale(0.9) rotate(var(--rot, 0deg));
+        opacity: 0;
+      }
+    }
+
+    /* Respect reduced motion: don't animate hearts */
+    @media (prefers-reduced-motion: reduce) {
+      .flying-heart { animation: none !important; opacity: 0 !important; }
+    }
+
+    /* Open state: flap rotates away and moves behind the letter */
+    .envelope-wrapper.open .flap {
+      transform: rotateX(-140deg);
+      z-index: 1;
+    }
+
+    .audio-note {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      opacity: 0.75;
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.3rem;
+      }
+      .subtitle {
+        font-size: 0.8rem;
+      }
+      .letter h2 {
+        font-size: 1rem;
+      }
+      .poem {
+        font-size: 0.20rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Change this title/message if you want -->
+    <h1>For Your Promotion</h1>
+    <p class="subtitle">Click the envelope to open my letter.</p>
+
+    <div class="envelope-wrapper" id="envelopeWrapper" aria-label="Open letter">
+      <div class="envelope">
+        <div class="flap"></div>
+        <div class="left-flap"></div>
+        <div class="right-flap"></div>
+
+        <div class="letter" id="letter">
+          <!-- You can edit the text below -->
+          <h2>Dear Langga,</h2>
+          <p class="to-line">i am so proud of you!!</p>
+
+          <div class="poem">
+            <!-- 🔽 Replace this with your actual poem. Keep line breaks. -->
+who would've thought a simple swipe could start this way,
+and yet here you are, brightening my day,
+you call me "mi princessa", "mi amor", so sweet,
+pet names that make my heart skip a beat.
+
+these past few days, time we could share,
+you haerd my stories, showed me you care.
+then work came back, and life got in the way,
+but you still text me first, what can i even say?
+
+promocion lograda - felicidades mi amor,
+you earned it all, your efforts I adore.
+big hugs and kisses, from me to you,
+celebrating the success you so richly drew.
+
+even if we're not "us" yet, i just want you to know,
+i'm prouf of you always, and i love seeing you grow.
+          </div>
+
+          <div class="signature">
+            Taos-pusong sumasaludo,<br />
+            <b>cha</b>
+          </div>
+
+          <div class="heart">💌</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🔊 Your audio file -->
+    <!-- Put poem.mp3 in the same folder as this HTML file, or change the src path accordingly -->
+    <audio id="poemAudio" src="poem.mp3"></audio>
+
+    <!-- Optional: show native audio controls for testing -->
+    <!-- <audio controls src="poem.mp3" style="margin-top:1rem;"></audio> -->
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const wrapper = document.getElementById("envelopeWrapper");
+      const letter = document.getElementById("letter");
+      const audio = document.getElementById("poemAudio");
+      const poem = letter ? letter.querySelector('.poem') : null;
+
+      let hasPlayedOnce = false;
+
+      // Autoscroll state
+      let scrollAnimId = null;
+      let lastTime = null;
+      let isPaused = false;
+      const SCROLL_SPEED = 20; // pixels per second
+
+      function startAutoScroll() {
+        if (!poem) return;
+        // only scroll if content overflows
+        if (poem.scrollHeight <= poem.clientHeight) return;
+        if (scrollAnimId) return; // already running
+        lastTime = performance.now();
+        scrollAnimId = requestAnimationFrame(stepScroll);
+      }
+
+      function stepScroll(ts) {
+        if (!poem) return cancelScroll();
+        if (isPaused) {
+          lastTime = ts;
+          scrollAnimId = requestAnimationFrame(stepScroll);
+          return;
+        }
+        const dt = (ts - lastTime) / 1000;
+        lastTime = ts;
+        // advance scrollTop with speed, but don't pass the bottom
+        const maxScroll = poem.scrollHeight - poem.clientHeight;
+        poem.scrollTop = Math.min(poem.scrollTop + dt * SCROLL_SPEED, maxScroll);
+        if (Math.abs(poem.scrollTop - maxScroll) > 0.5) {
+          scrollAnimId = requestAnimationFrame(stepScroll);
+        } else {
+          // reached bottom — stop (leave at bottom). Could loop if desired.
+          cancelScroll(false);
+        }
+      }
+
+      function cancelScroll(resetToTop = true) {
+        if (scrollAnimId) cancelAnimationFrame(scrollAnimId);
+        scrollAnimId = null;
+        lastTime = null;
+        if (resetToTop && poem) poem.scrollTop = 0;
+      }
+
+      if (poem) {
+        poem.addEventListener('mouseenter', () => { isPaused = true; });
+        poem.addEventListener('mouseleave', () => { isPaused = false; });
+      }
+
+      // envelope element for heart spawn
+      const envelopeEl = wrapper.querySelector('.envelope');
+
+      // Create a burst of hearts when opening
+      function createHearts(count = 8) {
+        if (!envelopeEl) return;
+        for (let i = 0; i < count; i++) {
+          spawnHeart(i, count);
+        }
+      }
+
+      function spawnHeart(index, total) {
+        const h = document.createElement('div');
+        h.className = 'flying-heart';
+        h.textContent = '❤️';
+
+        // increase randomness for wider spread
+        const drift = (Math.random() - 0.5) * 300; // px horizontal drift (wider)
+        const rot = (Math.random() - 0.5) * 120; // deg rotation range
+        const size = 14 + Math.round(Math.random() * 28); // varied sizes
+        const delay = Math.random() * 420; // ms
+        const dur = 1000 + Math.round(Math.random() * 1400); // ms
+
+        // place hearts across a wider horizontal band and slightly lower start
+        const leftPct = 50 + (Math.random() - 0.5) * 90; // 50% ±45%
+        const topPct = 68 + Math.random() * 28; // start between ~68% and 96%
+
+        h.style.setProperty('--x', drift + 'px');
+        h.style.setProperty('--rot', rot + 'deg');
+        h.style.fontSize = size + 'px';
+        h.style.left = leftPct + '%';
+        h.style.top = topPct + '%';
+        h.style.animationDuration = dur + 'ms';
+        h.style.animationDelay = delay + 'ms';
+
+        envelopeEl.appendChild(h);
+
+        // remove after animation completes
+        setTimeout(() => {
+          if (h && h.parentNode) h.parentNode.removeChild(h);
+        }, dur + delay + 120);
+      }
+
+      wrapper.addEventListener("click", function () {
+        wrapper.classList.toggle("open");
+
+        if (wrapper.classList.contains("open")) {
+          // show letter
+          letter.classList.add("show");
+
+          // play audio on first open
+          if (!hasPlayedOnce && audio) {
+            audio.currentTime = 0;
+            audio.play().catch(function (err) {
+              console.log("Audio play blocked:", err);
+            });
+            hasPlayedOnce = true;
+          }
+
+          // start autoscroll after the open animation
+          setTimeout(() => startAutoScroll(), 420);
+          // spawn hearts
+          setTimeout(() => createHearts(12), 120);
+        } else {
+          // close letter
+          letter.classList.remove("show");
+          // stop and reset scroll
+          cancelScroll(true);
+        }
+      });
+
+      // Drag-to-pull behaviour for the letter
+      (function enableLetterDrag() {
+        if (!letter) return;
+        let dragging = false;
+        let startY = 0;
+        let initialTranslate = 0;
+        let currentTranslate = 0;
+        const threshold = 140; // px to consider fully pulled out
+
+        function getTranslateY(el) {
+          const st = window.getComputedStyle(el).transform;
+          if (!st || st === 'none') return 0;
+          const m = st.match(/matrix\(([^,]+),[^,]+,[^,]+,[^,]+,([^,]+),([^\)]+)\)/);
+          if (m) return parseFloat(m[3]);
+          const mm = st.match(/matrix3d\((.+)\)/);
+          if (mm) {
+            const parts = mm[1].split(',');
+            return parseFloat(parts[13]);
+          }
+          return 0;
+        }
+
+        letter.addEventListener('pointerdown', (ev) => {
+          if (!wrapper.classList.contains('open')) return; // only when open
+          ev.preventDefault();
+          ev.stopPropagation();
+          letter.setPointerCapture(ev.pointerId);
+          dragging = true;
+          startY = ev.clientY;
+          initialTranslate = Math.abs(getTranslateY(letter));
+          letter.classList.add('dragging');
+          letter.style.transition = 'none';
+        });
+
+        document.addEventListener('pointermove', (ev) => {
+          if (!dragging) return;
+          const dy = startY - ev.clientY; // positive when moving up
+          currentTranslate = Math.max(0, initialTranslate + dy);
+          letter.style.transform = `translateY(${-currentTranslate}px)`;
+        });
+
+        document.addEventListener('pointerup', (ev) => {
+          if (!dragging) return;
+          dragging = false;
+          try { letter.releasePointerCapture(ev.pointerId); } catch (e) {}
+          letter.classList.remove('dragging');
+          // decide final state
+          if (currentTranslate > threshold) {
+            // fully pull out
+            const letterRect = letter.getBoundingClientRect();
+            const envRect = envelopeEl.getBoundingClientRect();
+            const fullOut = (letterRect.bottom - envRect.top) + 20; // px to move so bottom clears envelope
+            letter.style.transition = 'transform 450ms cubic-bezier(.2,.9,.2,1)';
+            letter.style.transform = `translateY(${-fullOut}px)`;
+            letter.classList.add('pulled-out');
+          } else {
+            // snap back
+            letter.style.transition = 'transform 350ms cubic-bezier(.2,.9,.2,1)';
+            letter.style.transform = 'translateY(0)';
+            letter.classList.remove('pulled-out');
+          }
+          currentTranslate = 0;
+        });
+
+        // Reset transform when envelope is closed
+        const observer = new MutationObserver(() => {
+          if (!wrapper.classList.contains('open')) {
+            letter.style.transition = '';
+            letter.style.transform = '';
+            letter.classList.remove('pulled-out');
+          }
+        });
+        observer.observe(wrapper, { attributes: true, attributeFilter: ['class'] });
+      })();
+
+      // Pause scrolling when page is hidden
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) cancelScroll(false);
+        else if (wrapper.classList.contains('open')) startAutoScroll();
+      });
+    });
+  </script>
+</body>
+</html>
